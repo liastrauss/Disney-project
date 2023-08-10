@@ -1,5 +1,8 @@
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.spatial.distance import cdist
+from sklearn.cluster import KMeans
 
 movies = pd.read_csv(f"DisneyMoviesDataset.csv")
 cpi = pd.read_csv(f"US CPI.csv")
@@ -91,25 +94,91 @@ def normalise(cpi, field_name, data):
 # print(normalise(cpi, 'Budget (float)', movies))
 # print(normalise(cpi, 'Box office (float)', movies))
 
-def budget_box_office(data, cpi):
+
+def budget_box_office(data, cpi, profit_line):
     """
-    maps out the budget vs box office, normalised to 2021
+    maps out the budget vs box office, normalised to 2021. in addition there's an option to show
+    a line where budget=box office
     :param data: movie dataset
     :param cpi: cpi dataset
-    :return: scatterplot of budget and box office for each movie
+    :param k: number of clusters
+    :param profit_line: if true, show line where budget = box office
+    :return: dataset
     """
     data_c = data.copy()
     data_c = normalise(cpi, 'Budget (float)', data_c)
     data_c = normalise(cpi, 'Box office (float)', data_c)
+    data_c = remove_empty(data_c, ['Budget (float)', 'Box office (float)'])
 
-    plt.scatter(data_c['Budget (float) normalised'], data_c['Box office (float) normalised'], marker='o', color='blue',
-                alpha=0.5)
+    # so we can see budget and box office in million dollars
+    norm_budget = data_c['Budget (float) normalised'] / 1000000
+    norm_box_office = data_c['Box office (float) normalised'] / 1000000
 
-    plt.title("Scatter Plot of Budget vs Box Office".format('Budget (float)', 'Box office (float)'))
+    plt.scatter(norm_budget, norm_box_office, marker='o', color='blue', alpha=0.5)
+
+    # Perform k-means clustering
+    X = np.column_stack((norm_budget, norm_box_office))
+    kmeans = KMeans(n_clusters=3, random_state=0)  # You can adjust other parameters as needed
+    cluster_labels = kmeans.fit_predict(X)
+    cluster_centers = kmeans.cluster_centers_
+
+    cluster_colors = ['blue', 'green', 'purple', 'orange', 'cyan', 'magenta', 'yellow', 'brown', 'pink']
+
+    # Plot each data point with its assigned cluster color
+    for i in range(3):
+        plt.scatter(norm_budget[cluster_labels == i], norm_box_office[cluster_labels == i],
+                    marker='o', color=cluster_colors[i], alpha=0.5, label=f'Cluster {i + 1}')
+
+    # Plot cluster centers
+    plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], c='red', marker='x', label='Centroids')
+
+    plt.title("Budget and Box Office, in million dollars".format('Budget (float)', 'Box office (float)'))
     plt.xlabel('Budget')
     plt.ylabel('Box Office')
 
+    if profit_line:
+        plt.plot([0, 500], [0, 500], linestyle='--', color='gray')
+
     plt.grid(True)  # Add grid lines
     plt.show()
+    return data_c
 
-print(budget_box_office(movies, cpi))
+
+# print(budget_box_office(movies, cpi, True))
+
+def find_profit_margin(data, cpi, column_list, profitable):
+    """
+    finds the top 10 movies where the profit margin is either very high or very low
+    :param data: movie dataset
+    :param cpi: cpi dataset
+    :param column_list: list of column names from dataset to find profit margin for.
+    column_list[0] is coord x, column_list[1] is coord y
+    :param profitable: true if i want to find movies that are max{box office-budget},
+    false if i want to find movies that are max{budget-box office}
+    :return: dictionary where key is the name of the movie, and value is the coordinates of
+    fields in column_list.
+    """
+    data = budget_box_office(data, cpi, False)
+
+    # Calculate the profit (box office - budget)
+    data['profit'] = data[column_list[1]] - data[column_list[0]]
+
+    # Sort the data by profit in descending order if looking for most profitable, otherwise in ascending order
+    data_sorted = data.sort_values(by='profit', ascending=not profitable)
+
+    # Get the top 10 movies based on profitability
+    top_movies = data_sorted.head(10)
+
+    # Create a dictionary to store the results
+    result_dict = {}
+    for index, row in top_movies.iterrows():
+        movie_name = row['title']
+        coordinates = [row[column_list[0]], row[column_list[1]]]
+        result_dict[movie_name] = coordinates
+
+    return result_dict
+
+print(find_profit_margin(movies, cpi, ['Budget (float) normalised', 'Box office (float) normalised'], True))
+print(find_profit_margin(movies, cpi, ['Budget (float) normalised', 'Box office (float) normalised'], False))
+
+
