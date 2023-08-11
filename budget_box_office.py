@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 
 movies = pd.read_csv(f"DisneyMoviesDataset.csv")
@@ -16,13 +15,14 @@ def remove_empty(data, column_lst):
     :return: dataset with columns that have all the data
     """
     # print(len(data))
-    data = data.dropna(subset=column_lst)
     # print(data.isnull().mean())
+    data = data.dropna(subset=column_lst)
     # print(len(data))
     return data
 
 
-# print(remove_empty(movies, ['Budget (float)', 'Box office (float)']))
+# print(remove_empty(movies, ['Release date (datetime)', 'Box office (float)']))
+
 
 def extract_yearly_cpi(data):
     """
@@ -66,7 +66,7 @@ def fix_dates(data):
 
 def normalise(cpi, field_name, data):
     """
-    normalises monetary fields in dataset and adds them as a column to data
+    normalises monetary fields to 2021 in dataset and adds them as a column to data
     :param cpi: cpi dataset
     :param field_name: field to normalise
     :param data: movie dataset
@@ -74,7 +74,7 @@ def normalise(cpi, field_name, data):
     """
     # converting to datetime and fixing dates, extracting yearly cpi
     data = fix_dates(data)
-    data = remove_empty(data, ['Release date (datetime)', 'Budget (float)'])
+    data = remove_empty(data, ['Release date (datetime)', field_name])
     yearly_cpi = extract_yearly_cpi(cpi)
 
     # inflation rate of year i = (cpi 2021) / (cpi year i)
@@ -95,13 +95,13 @@ def normalise(cpi, field_name, data):
 # print(normalise(cpi, 'Box office (float)', movies))
 
 
-def budget_box_office(data, cpi, profit_line):
+def budget_box_office(data, cpi, show, profit_line):
     """
     maps out the budget vs box office, normalised to 2021. in addition there's an option to show
     a line where budget=box office
     :param data: movie dataset
     :param cpi: cpi dataset
-    :param k: number of clusters
+    :param show: if true, show plot
     :param profit_line: if true, show line where budget = box office
     :return: dataset
     """
@@ -140,11 +140,14 @@ def budget_box_office(data, cpi, profit_line):
         plt.plot([0, 500], [0, 500], linestyle='--', color='gray')
 
     plt.grid(True)  # Add grid lines
-    plt.show()
+
+    if show:
+        plt.show()
     return data_c
 
 
-# print(budget_box_office(movies, cpi, True))
+# print(budget_box_office(movies, cpi, True, True))
+
 
 def find_profit_margin(data, cpi, column_list, profitable):
     """
@@ -158,7 +161,7 @@ def find_profit_margin(data, cpi, column_list, profitable):
     :return: dictionary where key is the name of the movie, and value is the coordinates of
     fields in column_list.
     """
-    data = budget_box_office(data, cpi, False)
+    data = budget_box_office(data, cpi, False, False)
 
     # Calculate the profit (box office - budget)
     data['profit'] = data[column_list[1]] - data[column_list[0]]
@@ -178,7 +181,5 @@ def find_profit_margin(data, cpi, column_list, profitable):
 
     return result_dict
 
-print(find_profit_margin(movies, cpi, ['Budget (float) normalised', 'Box office (float) normalised'], True))
-print(find_profit_margin(movies, cpi, ['Budget (float) normalised', 'Box office (float) normalised'], False))
-
-
+# print(find_profit_margin(movies, cpi, ['Budget (float) normalised', 'Box office (float) normalised'], True))
+# print(find_profit_margin(movies, cpi, ['Budget (float) normalised', 'Box office (float) normalised'], False))
