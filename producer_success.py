@@ -53,10 +53,72 @@ def producer_success(data):
     plt.ylim(0, 10)
     plt.show()
 
-print(producer_success(movies))
+
+# print(producer_success(movies))
+
+def clean_producers(data):
+    """
+    cleans producers column in dataset
+    :param data: movie dataset
+    :return: dataset with clean column
+    """
+    cleaned_producers = []
+    for producer in data['Produced by']:
+        if isinstance(producer, str):
+            # producer full name
+            cleaned_producers.append(producer.strip())
+        elif isinstance(producer, list):
+            # list of producers
+            cleaned_producers.append(', '.join([p.strip() for p in producer]))
+        elif isinstance(producer, tuple):
+            # multiple producers as a comma-separated string
+            cleaned_producers.append(', '.join([p.strip() for p in producer[0].split(',')]))
+        else:
+            cleaned_producers.append(None)
+
+    data['Produced by (clean)'] = cleaned_producers
+    # print(cleaned_producers)
+    return data
 
 
+# print(clean_producers(movies))
 
+
+def detailed_producer_success(data):
+    """
+    calculates rating of movies according to whether they were produced by walt disney alone, by
+    walt disney and others, or without walt disney
+    :param data: movie dataset
+    :return: histogram mapping it out
+    """
+    # cleaning
+    data = get_comb_rating(data)
+    data = remove_empty(data, ['Produced by', 'combined rating'])
+    data = clean_producers(data)
+
+    disney_alone = data[data['Produced by (clean)'].str.lower() == 'walt disney']
+    disney_and_others = data[data['Produced by (clean)'].str.contains('walt disney', case=False) & ~(
+            data['Produced by (clean)'].str.lower() == 'walt disney')]
+    without_disney = data[~data['Produced by (clean)'].str.contains('walt disney', case=False)]
+
+    # mean combined ratings for each group
+    mean_disney_alone = disney_alone['combined rating'].mean()
+    mean_disney_and_others = disney_and_others['combined rating'].mean()
+    mean_without_disney = without_disney['combined rating'].mean()
+
+    # Create a histogram
+    # plt.figure(figsize=(10, 6))
+    plt.bar(['Disney Alone', 'Disney and Others', 'Without Disney'],
+            [mean_disney_alone, mean_disney_and_others, mean_without_disney],
+            color=['blue', 'orange', 'green'])
+    plt.title('Detailed Producer Success Comparison')
+    plt.xlabel('Producer Group')
+    plt.ylabel('Mean Combined Rating')
+    plt.ylim(0, 10)
+    plt.show()
+
+
+print(detailed_producer_success(movies))
 
 def most_successful_producer(data):
     """
