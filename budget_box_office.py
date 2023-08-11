@@ -21,7 +21,7 @@ def remove_empty(data, column_lst):
     return data
 
 
-# print(remove_empty(movies, ['Release date (datetime)', 'Box office (float)']))
+# print(remove_empty(movies, ['imdb', 'rotten_tomatoes']))
 
 
 def extract_yearly_cpi(data):
@@ -116,7 +116,6 @@ def budget_box_office(data, cpi, show, profit_line):
 
     plt.scatter(norm_budget, norm_box_office, marker='o', color='blue', alpha=0.5)
 
-    # Perform k-means clustering
     X = np.column_stack((norm_budget, norm_box_office))
     kmeans = KMeans(n_clusters=3, random_state=0)  # You can adjust other parameters as needed
     cluster_labels = kmeans.fit_predict(X)
@@ -124,12 +123,10 @@ def budget_box_office(data, cpi, show, profit_line):
 
     cluster_colors = ['blue', 'green', 'purple', 'orange', 'cyan', 'magenta', 'yellow', 'brown', 'pink']
 
-    # Plot each data point with its assigned cluster color
     for i in range(3):
         plt.scatter(norm_budget[cluster_labels == i], norm_box_office[cluster_labels == i],
                     marker='o', color=cluster_colors[i], alpha=0.5, label=f'Cluster {i + 1}')
-
-    # Plot cluster centers
+    # plotting centeroids
     plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], c='red', marker='x', label='Centroids')
 
     plt.title("Budget and Box Office, in million dollars".format('Budget (float)', 'Box office (float)'))
@@ -163,16 +160,15 @@ def find_profit_margin(data, cpi, column_list, profitable):
     """
     data = budget_box_office(data, cpi, False, False)
 
-    # Calculate the profit (box office - budget)
+    # calculating the profit (box office - budget)
     data['profit'] = data[column_list[1]] - data[column_list[0]]
 
-    # Sort the data by profit in descending order if looking for most profitable, otherwise in ascending order
+    # sort the data by profit in descending order if looking for most profitable, otherwise in ascending order
     data_sorted = data.sort_values(by='profit', ascending=not profitable)
 
-    # Get the top 10 movies based on profitability
+    # get the top 10 movies based on profitability
     top_movies = data_sorted.head(10)
 
-    # Create a dictionary to store the results
     result_dict = {}
     for index, row in top_movies.iterrows():
         movie_name = row['title']

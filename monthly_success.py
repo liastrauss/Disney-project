@@ -1,5 +1,3 @@
-import numpy as np
-import pandas as pd
 from budget_box_office import *
 
 movies = pd.read_csv(f"DisneyMoviesDataset.csv")
@@ -21,7 +19,7 @@ def monthly_success(data, cpi):
     data['Release Month'] = data['Release date (datetime)'].dt.strftime('%b')
     # print(data['Release Month'])
 
-    monthly_avg_box_office = data.groupby('Release Month')['Box office (float) normalised'].mean()/1000000
+    monthly_avg_box_office = data.groupby('Release Month')['Box office (float) normalised'].mean() / 1000000
     month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     monthly_avg_box_office = monthly_avg_box_office.reindex(month_order)
     monthly_avg_box_office.plot(kind='bar', color='blue')
@@ -32,6 +30,4 @@ def monthly_success(data, cpi):
     plt.tight_layout()
     plt.show()
 
-print(monthly_success(movies, cpi))
-
-
+# print(monthly_success(movies, cpi))
