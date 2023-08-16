@@ -118,6 +118,50 @@ def detailed_producer_success(data):
     plt.show()
 
 
-print(detailed_producer_success(movies))
+# print(detailed_producer_success(movies))
+
+def ten_producers(data, successful):
+    """
+    shows the top 10 most / least successful producers according to movie rating
+    :param data: movie dataset
+    :param successful: true for most successful, false for least successful
+    :return: histogram of top 10 most / least successful producers according to rating
+    """
+    # cleaning
+    data = get_comb_rating(data)
+    data = clean_producers(data)
+    data = remove_empty(data, ['combined rating', 'Produced by (clean)'])
+
+    # creating a list of tuples with producer and rating
+    producer_ratings = []
+    for idx, row in data.iterrows():
+        producers = row['Produced by (clean)'].split(', ')
+        for producer in producers:
+            cleaned_producer = producer.strip('[]')  # Remove square brackets
+            producer_ratings.append((cleaned_producer, row['combined rating']))
+
+    # creating a dataframe from the list of tuples
+    producer_ratings_df = pd.DataFrame.from_records(producer_ratings, columns=['Producer', 'Rating'])
+
+    # calculating the average rating for each producer
+    avg_producer_ratings = producer_ratings_df.groupby('Producer')['Rating'].mean()
+
+    # sorting the avg_producer_ratings based on success (ascending if successful=False)
+    sorted_producer_ratings = avg_producer_ratings.sort_values(ascending=not successful)
+
+    # getting top 10 producers
+    top_producers = sorted_producer_ratings.head(10)
+
+    plt.figure(figsize=(10, 6))
+    top_producers.plot(kind='bar', color='blue')
+    plt.ylim(0, 10)
+    plt.title('Top 10 ' + ('Most' if successful else 'Least') + ' Successful Producers')
+    plt.xlabel('Producer')
+    plt.ylabel('Average Rating')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
 
 
+# print(ten_producers(movies, True))
+# print(ten_producers(movies, False))
