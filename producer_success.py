@@ -120,9 +120,4 @@ def detailed_producer_success(data):
 
 print(detailed_producer_success(movies))
 
-def most_successful_producer(data):
-    """
-    maps out the success of each individual producer according to rating
-    :param data:
-    :return:
-    """
+
