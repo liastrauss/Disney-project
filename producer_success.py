@@ -91,19 +91,26 @@ def producer_success(data):
     other_movies = data[~data['title'].isin(disney_movies['title'])]
     other_avg_ratings = other_movies[['imdb', 'metascore', 'rotten_tomatoes']].mean()
 
-    # Create a bar plot for average ratings
-    rating_columns = ['IMDB', 'Metascore', 'Rotten Tomatoes']
-    x = range(len(rating_columns))
+    # Create a grouped bar plot for average ratings
+    rating_categories = ['Disney', 'Other Producers']
+    rating_columns = ['imdb', 'metascore', 'rotten_tomatoes']
+    x = range(len(rating_categories))
+    width = 0.2
 
-    plt.bar(x, disney_avg_ratings, width=0.4, label='Disney')
-    plt.bar([i + 0.4 for i in x], other_avg_ratings, width=0.4, label='Other Producers')
+    fig, ax = plt.subplots(figsize=(10, 6))
 
-    plt.xlabel('Rating Categories')
-    plt.ylabel('Average Rating')
-    plt.title('Average Ratings for Disney vs. Other Producers')
-    plt.xticks([i + 0.2 for i in x], rating_columns)
-    plt.ylim(0, 10)
-    plt.legend()
+    for i, rating_col in enumerate(rating_columns):
+        ax.bar([pos + width * i for pos in x], [disney_avg_ratings[rating_col], other_avg_ratings[rating_col]], width,
+               label=rating_col)
+
+    ax.set_xlabel('Producer')
+    ax.set_ylabel('Average Rating')
+    ax.set_title('Average Ratings for Disney vs. Other Producers')
+    ax.set_xticks([pos + width for pos in x])
+    ax.set_xticklabels(rating_categories)
+    ax.set_ylim(0, 10)  # Set y-axis limit to 0-10
+    ax.legend()
+
     plt.show()
 
 
@@ -144,34 +151,45 @@ def detailed_producer_success(data):
     :param data: movie dataset
     :return: histogram mapping it out
     """
-    # cleaning
-    data = get_comb_rating(data)
-    data = remove_empty(data, ['Produced by', 'combined rating'])
-    data = clean_producers(data)
+    # Cleaning data
+    data = clean_rating(data)
+    data = remove_empty(data, ['Produced by', 'imdb', 'metascore', 'rotten_tomatoes'])
+    data = clean_producers(data)  # You need to implement clean_producers function
 
     disney_alone = data[data['Produced by (clean)'].str.lower() == 'walt disney']
     disney_and_others = data[data['Produced by (clean)'].str.contains('walt disney', case=False) & ~(
             data['Produced by (clean)'].str.lower() == 'walt disney')]
     without_disney = data[~data['Produced by (clean)'].str.contains('walt disney', case=False)]
 
-    # mean combined ratings for each group
-    mean_disney_alone = disney_alone['combined rating'].mean()
-    mean_disney_and_others = disney_and_others['combined rating'].mean()
-    mean_without_disney = without_disney['combined rating'].mean()
+    # Calculate average ratings for each producer category
+    disney_alone_avg_ratings = disney_alone[['imdb', 'metascore', 'rotten_tomatoes']].mean()
+    disney_and_others_avg_ratings = disney_and_others[['imdb', 'metascore', 'rotten_tomatoes']].mean()
+    without_disney_avg_ratings = without_disney[['imdb', 'metascore', 'rotten_tomatoes']].mean()
 
-    # Create a histogram
-    # plt.figure(figsize=(10, 6))
-    plt.bar(['Disney Alone', 'Disney and Others', 'Without Disney'],
-            [mean_disney_alone, mean_disney_and_others, mean_without_disney],
-            color=['blue', 'orange', 'green'])
-    plt.title('Detailed Producer Success Comparison')
-    plt.xlabel('Producer Group')
-    plt.ylabel('Mean Combined Rating')
-    plt.ylim(0, 10)
+    # Create bar plots for average ratings
+    producer_categories = ['Disney Alone', 'Disney and Others', 'Without Disney']
+    x = range(len(producer_categories))
+    width = 0.25
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    for i, rating_col in enumerate(['imdb', 'metascore', 'rotten_tomatoes']):
+        ax.bar([pos + width * i for pos in x],
+               [disney_alone_avg_ratings[rating_col], disney_and_others_avg_ratings[rating_col],
+                without_disney_avg_ratings[rating_col]], width, label=rating_col)
+
+    ax.set_xlabel('Producer Categories')
+    ax.set_ylabel('Average Rating')
+    ax.set_title('Average Ratings for Different Producer Categories')
+    ax.set_xticks([pos + width for pos in x])
+    ax.set_xticklabels(producer_categories)
+    ax.set_ylim(0, 10)  # Set y-axis limit to 0-10
+    ax.legend(loc='upper left')
+
     plt.show()
 
 
-# print(detailed_producer_success(movies))
+print(detailed_producer_success(movies))
 
 def ten_producers(data, successful):
     """
