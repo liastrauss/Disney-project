@@ -21,7 +21,7 @@ def remove_empty(data, column_lst):
     return data
 
 
-# print(remove_empty(movies, ['imdb', 'rotten_tomatoes']))
+# print(remove_empty(movies, ['imdb', 'rotten_tomatoes', 'metascore']))
 
 
 def extract_yearly_cpi(data):

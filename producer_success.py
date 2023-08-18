@@ -3,54 +3,107 @@ from monthly_success import *
 movies = pd.read_csv(f"DisneyMoviesDataset.csv")
 
 
-# def find_disney(data):
-#     data = remove_empty(data, 'Produced by')
-#     for prod in data['Produced by']:
-#         if 'Disney' in prod:
-#             print(prod)
-
-
-# print(find_disney(movies))
-
-def get_comb_rating(data):
+def make_rating_uniform(data):
     """
-    calculates the combined rating of movie according to rotten tomatoes and imdb and adds as column
-    :param data: movie dataset
-    :return: dataset with new column of combined rating
+    Modifies ratings such that they are all float and between 1-10.
+    :param data: Movie dataset
+    :return: Dataset with uniform ratings
     """
-    data = remove_empty(data, ['imdb', 'rotten_tomatoes'])
-    data['rotten_tomatoes'] = data['rotten_tomatoes'].apply(lambda x: float(x.strip('%')) / 10)
-    data['imdb'] = data['imdb'].astype(float)
-    # print(data['rotten_tomatoes'])
-    # print(data['imdb'])
+    data['imdb'] = pd.to_numeric(data['imdb'], errors='coerce')
+    data['metascore'] = pd.to_numeric(data['metascore'], errors='coerce') / 10
+    data['rotten_tomatoes'] = pd.to_numeric(data['rotten_tomatoes'].str.replace('%', ''), errors='coerce') / 10
 
-    data.loc[:, 'combined rating'] = (data['imdb'] + data['rotten_tomatoes']) / 2
     return data
 
 
-# print(get_avg_rating(movies))
+# print(make_rating_uniform(movies))
+
+def clean_rating(data):
+    """
+    inserts the average rating of each movie for empty cells
+    :param data: movie dataset
+    :return: dataset with full rating information
+    """
+    # making uniform
+    data = make_rating_uniform(data)
+
+    data['average_rating'] = data[['imdb', 'metascore', 'rotten_tomatoes']].apply(
+        lambda row: np.mean([value for value in row if pd.notnull(value)]),
+        axis=1
+    )
+
+    # replacing empty cells with row average
+    data['imdb'] = data.apply(
+        lambda row: row['average_rating'] if not row.isnull().all() and pd.isnull(row['imdb']) else row['imdb'], axis=1)
+    data['metascore'] = data.apply(
+        lambda row: row['average_rating'] if not row.isnull().all() and pd.isnull(row['metascore']) else row[
+            'metascore'], axis=1)
+    data['rotten_tomatoes'] = data.apply(
+        lambda row: row['average_rating'] if not row.isnull().all() and pd.isnull(row['rotten_tomatoes']) else row[
+            'rotten_tomatoes'], axis=1)
+
+    data.drop(columns=['average_rating'], inplace=True)
+
+    # print(data['imdb'], data['metascore'], data['rotten_tomatoes'])
+    return data
+
+
+# print(clean_rating(movies))
+
+
+def get_comb_rating(data):
+    """
+    calculates the combined rating of movie and adds as column
+    :param data: movie dataset
+    :return: dataset with new column of combined rating
+    """
+    # cleaning
+    data = clean_rating(data)
+    data = remove_empty(data, ['imdb', 'metascore', 'rotten_tomatoes'])
+
+    data['combined rating'] = data[['imdb', 'metascore', 'rotten_tomatoes']].mean(axis=1)
+
+    return data
+
+
+# print(get_comb_rating(movies))
+
 
 def producer_success(data):
     """
     calculates rating of movies according to whether they were produced by walt disney
     :param data: movie dataset
-    :return: histogram showing walt disney's success as a producer vs. other producers
+    :return: histogram showing walt disney's success as a producer vs. other producers for each rating
     """
     # cleaning data
-    data = get_comb_rating(data)
-    data = remove_empty(data, 'Produced by')
+    # data = get_comb_rating(data)
+    # data = remove_empty(data, ['Produced by', 'combined rating'])
+    data = clean_rating(data)
+    data = remove_empty(data, ['Produced by', 'imdb', 'metascore', 'rotten_tomatoes'])
 
-    disney_movies = data[data['Produced by'].str.contains('Disney', case=False, na=False)]
-    non_disney_movies = data[~data['Produced by'].str.contains('Disney', case=False, na=False)]
+    # roy e. disney doesn't count as walt disney
+    disney_movies = data[data['Produced by'].str.contains('|'.join(['Disney']), case=False, na=False)]
+    roy_disney_movies = data[data['Produced by'].str.contains('Roy E. Disney', case=False, na=False)]
+    disney_movies = disney_movies[~disney_movies['title'].isin(roy_disney_movies['title'])]
 
-    mean_disney_rating = disney_movies['combined rating'].mean()
-    mean_non_disney_rating = non_disney_movies['combined rating'].mean()
+    # Calculate average ratings for Disney and other producers
+    disney_avg_ratings = disney_movies[['imdb', 'metascore', 'rotten_tomatoes']].mean()
+    other_movies = data[~data['title'].isin(disney_movies['title'])]
+    other_avg_ratings = other_movies[['imdb', 'metascore', 'rotten_tomatoes']].mean()
 
-    plt.bar(['Disney', 'Non-Disney'], [mean_disney_rating, mean_non_disney_rating], color=['blue', 'orange'])
-    plt.title('Mean Combined Ratings Comparison')
-    plt.xlabel('Producer')
-    plt.ylabel('Mean Combined Rating')
+    # Create a bar plot for average ratings
+    rating_columns = ['IMDB', 'Metascore', 'Rotten Tomatoes']
+    x = range(len(rating_columns))
+
+    plt.bar(x, disney_avg_ratings, width=0.4, label='Disney')
+    plt.bar([i + 0.4 for i in x], other_avg_ratings, width=0.4, label='Other Producers')
+
+    plt.xlabel('Rating Categories')
+    plt.ylabel('Average Rating')
+    plt.title('Average Ratings for Disney vs. Other Producers')
+    plt.xticks([i + 0.2 for i in x], rating_columns)
     plt.ylim(0, 10)
+    plt.legend()
     plt.show()
 
 
@@ -161,7 +214,6 @@ def ten_producers(data, successful):
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
-
 
 # print(ten_producers(movies, True))
 # print(ten_producers(movies, False))
