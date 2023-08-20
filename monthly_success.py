@@ -25,10 +25,12 @@ def avg_monthly_success(data, cpi):
     monthly_avg_box_office.plot(kind='bar', color='blue')
     plt.title('Average Movie Success by Release Month')
     plt.xlabel('Month')
-    plt.ylabel('Average Box Office, in million dollars')
+    plt.ylabel('Average Box Office (in million dollars)')
     plt.xticks(rotation=0)
     plt.tight_layout()
     plt.show()
+
+print(avg_monthly_success(movies, cpi))
 
 
 def monthly_success(data, cpi):

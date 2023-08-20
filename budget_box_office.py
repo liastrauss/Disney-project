@@ -64,6 +64,44 @@ def fix_dates(data):
 
 # print(fix_dates(movies))
 
+def update_remakes(data):
+    """
+    finds all movies that are remakes and adds the year to their title for easier distinguishing
+    :param data: movie dataset
+    :return: dataset with remakes
+    """
+    # cleaning
+    data = fix_dates(data)
+    data = remove_empty(data, ['title', 'Release date (datetime)'])
+
+    title_years = {}
+
+    for index, row in data.iterrows():
+        title = row['title']
+        year = row['Release date (datetime)'].year
+
+        if title in title_years:
+            if year > title_years[title]:
+                title_years[title] = year
+        else:
+            title_years[title] = year
+
+    # Iterate through the dictionary and update movie titles
+    for title, year in title_years.items():
+        same_titles = data[data['title'] == title]
+        if len(same_titles) > 1:
+            for index, row in same_titles.iterrows():
+                updated_title = title
+                if row['Release date (datetime)'].year == year:
+                    updated_title += f" ({year})"
+                data.at[index, 'title'] = updated_title
+
+    return data
+
+
+# print(update_remakes(movies))
+
+
 def normalise(cpi, field_name, data):
     """
     normalises monetary fields to 2021 in dataset and adds them as a column to data
@@ -117,16 +155,16 @@ def budget_box_office(data, cpi, show, profit_line, regression):
 
     plt.scatter(norm_budget, norm_box_office, marker='o', color='blue', alpha=0.5)
 
-    # X = np.column_stack((norm_budget, norm_box_office))
-    # kmeans = KMeans(n_clusters=3, random_state=0)  # You can adjust other parameters as needed
-    # cluster_labels = kmeans.fit_predict(X)
-    # cluster_centers = kmeans.cluster_centers_
+    X = np.column_stack((norm_budget, norm_box_office))
+    kmeans = KMeans(n_clusters=1, random_state=0)  # You can adjust other parameters as needed
+    cluster_labels = kmeans.fit_predict(X)
+    cluster_centers = kmeans.cluster_centers_
 
-    # cluster_colors = ['blue', 'green', 'purple', 'orange', 'cyan', 'magenta', 'yellow', 'brown', 'pink']
-    #
-    # for i in range(3):
-    #     plt.scatter(norm_budget[cluster_labels == i], norm_box_office[cluster_labels == i],
-    #                 marker='o', color=cluster_colors[i], alpha=0.5)
+    cluster_colors = ['blue', 'green', 'purple', 'orange', 'cyan', 'magenta', 'yellow', 'brown', 'pink']
+
+    for i in range(1):
+        plt.scatter(norm_budget[cluster_labels == i], norm_box_office[cluster_labels == i],
+                    marker='o', color=cluster_colors[i], alpha=0.5)
 
     # Plot the regression line for the whole plot
     if regression:
@@ -140,7 +178,7 @@ def budget_box_office(data, cpi, show, profit_line, regression):
         print(f"RMSE for Regression: {rmse:.2f} million dollars")
 
     # plotting centeroids
-    # plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], c='red', marker='x')
+    plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], c='red', marker='x')
 
     plt.title("Budget and Box Office, in million dollars")
     plt.xlabel('Budget')
@@ -154,31 +192,29 @@ def budget_box_office(data, cpi, show, profit_line, regression):
 
     if show:
         plt.show()
+    return data_c
 
 
+# print(budget_box_office(movies, cpi, True, True, True))
 
-print(budget_box_office(movies, cpi, True, True, True))
 
-
-def find_profit_margin(data, cpi, column_list, profitable):
+def find_profit_margin(data, cpi, column_list):
     """
-    Finds the top 10 movies where the profit margin is either very high or very low
-    and visualizes the results as side-by-side bar chart.
+    Finds the top 10 movies with the highest profit margin and visualizes the results
     :param data: movie dataset
     :param cpi: cpi dataset
     :param column_list: list of column names from dataset to find profit margin for.
     column_list[0] is coord x, column_list[1] is coord y
-    :param profitable: True if finding movies with max{box office-budget},
-    False if finding movies with max{budget-box office}
     :return: Double bar chart depicting this
     """
     data = budget_box_office(data, cpi, False, False, False)
+    data = update_remakes(data)
 
     # calculating the profit (box office - budget)
     data['profit'] = data[column_list[1]] - data[column_list[0]]
 
-    # sorting by profit in descending order if looking for most profitable, otherwise in ascending order
-    data_sorted = data.sort_values(by='profit', ascending=not profitable)
+    # sorting by the absolute difference between budget and box office in descending order
+    data_sorted = data.sort_values(by='profit', ascending=False)
     top_movies = data_sorted.head(10)
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -193,21 +229,19 @@ def find_profit_margin(data, cpi, column_list, profitable):
     box_office_bars = ax.bar([i + bar_width for i in index], box_office_values, bar_width, label='Box Office')
 
     ax.set_xlabel('Movies')
-    ax.set_ylabel('Values, in Million Dollars')
-    if profitable:
-        ax.set_title('Top 10 Movies with Highest Profit Margin')
-    else:
-        ax.set_title('Top 10 Movies with Lowest Profit Margin')
+    ax.set_ylabel('Values (in million dollars)')
+
     ax.set_xticks([i + bar_width / 2 for i in index])
     ax.set_xticklabels(movie_names, rotation=45, ha='right')
+    plt.xticks(wrap=True)
     ax.legend()
 
     plt.tight_layout()
     plt.show()
 
 
-# print(find_profit_margin(movies, cpi, ['Budget (float) normalised', 'Box office (float) normalised'], True))
-# print(find_profit_margin(movies, cpi, ['Budget (float) normalised', 'Box office (float) normalised'], False))
+# print(find_profit_margin(movies, cpi, ['Budget (float) normalised', 'Box office (float) normalised']))
+
 
 def ten_highest(data, cpi, field):
     """
@@ -220,6 +254,7 @@ def ten_highest(data, cpi, field):
     """
     data_c = data.copy()
     data_c = normalise(cpi, field, data_c)
+    data_c = update_remakes(data_c)
 
     top_10 = data_c.nlargest(10, field + ' normalised')
 
@@ -232,7 +267,6 @@ def ten_highest(data, cpi, field):
     plt.xticks(rotation=45, ha='right', wrap=True)  # Wrap movie names
     plt.tight_layout()
     plt.show()
-
 
 # print(ten_highest(movies, cpi, 'Budget (float)'))
 # print(ten_highest(movies, cpi, 'Box office (float)'))
