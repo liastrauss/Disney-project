@@ -98,13 +98,13 @@ def normalise(cpi, field_name, data):
 def budget_box_office(data, cpi, show, profit_line, regression):
     """
     maps out the budget vs box office, normalised to 2021. in addition there's an option to show
-    a line where budget=box office
+    a line where budget=box office and regression line
     :param data: movie dataset
     :param cpi: cpi dataset
     :param show: if true, show plot
     :param profit_line: if true, show line where budget = box office
     :param regression: if true, show regression line
-    :return: dataset
+    :return: shows plot
     """
     data_c = data.copy()
     data_c = normalise(cpi, 'Budget (float)', data_c)
@@ -117,16 +117,16 @@ def budget_box_office(data, cpi, show, profit_line, regression):
 
     plt.scatter(norm_budget, norm_box_office, marker='o', color='blue', alpha=0.5)
 
-    X = np.column_stack((norm_budget, norm_box_office))
-    kmeans = KMeans(n_clusters=3, random_state=0)  # You can adjust other parameters as needed
-    cluster_labels = kmeans.fit_predict(X)
-    cluster_centers = kmeans.cluster_centers_
+    # X = np.column_stack((norm_budget, norm_box_office))
+    # kmeans = KMeans(n_clusters=3, random_state=0)  # You can adjust other parameters as needed
+    # cluster_labels = kmeans.fit_predict(X)
+    # cluster_centers = kmeans.cluster_centers_
 
-    cluster_colors = ['blue', 'green', 'purple', 'orange', 'cyan', 'magenta', 'yellow', 'brown', 'pink']
-
-    for i in range(3):
-        plt.scatter(norm_budget[cluster_labels == i], norm_box_office[cluster_labels == i],
-                    marker='o', color=cluster_colors[i], alpha=0.5)
+    # cluster_colors = ['blue', 'green', 'purple', 'orange', 'cyan', 'magenta', 'yellow', 'brown', 'pink']
+    #
+    # for i in range(3):
+    #     plt.scatter(norm_budget[cluster_labels == i], norm_box_office[cluster_labels == i],
+    #                 marker='o', color=cluster_colors[i], alpha=0.5)
 
     # Plot the regression line for the whole plot
     if regression:
@@ -140,7 +140,7 @@ def budget_box_office(data, cpi, show, profit_line, regression):
         print(f"RMSE for Regression: {rmse:.2f} million dollars")
 
     # plotting centeroids
-    plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], c='red', marker='x')
+    # plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], c='red', marker='x')
 
     plt.title("Budget and Box Office, in million dollars")
     plt.xlabel('Budget')
@@ -154,10 +154,10 @@ def budget_box_office(data, cpi, show, profit_line, regression):
 
     if show:
         plt.show()
-    return data_c
 
 
-# print(budget_box_office(movies, cpi, True, True, True))
+
+print(budget_box_office(movies, cpi, True, True, True))
 
 
 def find_profit_margin(data, cpi, column_list, profitable):
@@ -216,14 +216,23 @@ def ten_highest(data, cpi, field):
     :param data: movie dataset
     :param cpi: cpi dataset
     :param field: field to find 10 highest values for
-    :return: DataFrame containing the top 10 movies with the highest field value
+    :return: Bar chart visualizing the top 10 movies with the highest field value
     """
     data_c = data.copy()
     data_c = normalise(cpi, field, data_c)
 
     top_10 = data_c.nlargest(10, field + ' normalised')
 
-    return top_10[['title', field + ' normalised']]
+    plt.figure(figsize=(10, 6))
+    plt.bar(top_10['title'], top_10[field + ' normalised'] / 1000000, color='blue')
+    plt.xlabel('Movie')
+    field = field.replace('(float)', '')
+    plt.ylabel(field + ' (in million dollars)')
+    plt.title(f'Top 10 Movies with Highest {field}')
+    plt.xticks(rotation=45, ha='right', wrap=True)  # Wrap movie names
+    plt.tight_layout()
+    plt.show()
+
 
 # print(ten_highest(movies, cpi, 'Budget (float)'))
 # print(ten_highest(movies, cpi, 'Box office (float)'))
