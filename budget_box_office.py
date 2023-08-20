@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
+from sklearn.metrics import mean_squared_error
 
 movies = pd.read_csv(f"DisneyMoviesDataset.csv")
 cpi = pd.read_csv(f"US CPI.csv")
@@ -22,7 +23,6 @@ def remove_empty(data, column_lst):
 
 
 # print(remove_empty(movies, ['imdb', 'rotten_tomatoes', 'metascore']))
-
 
 def extract_yearly_cpi(data):
     """
@@ -77,14 +77,14 @@ def normalise(cpi, field_name, data):
     data = remove_empty(data, ['Release date (datetime)', field_name])
     yearly_cpi = extract_yearly_cpi(cpi)
 
-    # inflation rate of year i = (cpi 2021) / (cpi year i)
+    # inflation rate of year i = (cpi 2021/cpi year i)**(1/(2021-i)
     # calculating inflation rate for each row
     inflation_rates = []
     for index, row in data.iterrows():
         year = row['Release date (datetime)'].year
         # print(year)
         cpi_year = yearly_cpi[year]
-        inflation_rate = (yearly_cpi[2021] / cpi_year)
+        inflation_rate = (yearly_cpi[2021] / cpi_year) ** (1 / (2021 - year))
         inflation_rates.append(inflation_rate)
 
     data.loc[:, field_name + ' normalised'] = data[field_name] * inflation_rates
@@ -95,7 +95,7 @@ def normalise(cpi, field_name, data):
 # print(normalise(cpi, 'Box office (float)', movies))
 
 
-def budget_box_office(data, cpi, show, profit_line):
+def budget_box_office(data, cpi, show, profit_line, regression):
     """
     maps out the budget vs box office, normalised to 2021. in addition there's an option to show
     a line where budget=box office
@@ -103,6 +103,7 @@ def budget_box_office(data, cpi, show, profit_line):
     :param cpi: cpi dataset
     :param show: if true, show plot
     :param profit_line: if true, show line where budget = box office
+    :param regression: if true, show regression line
     :return: dataset
     """
     data_c = data.copy()
@@ -125,57 +126,104 @@ def budget_box_office(data, cpi, show, profit_line):
 
     for i in range(3):
         plt.scatter(norm_budget[cluster_labels == i], norm_box_office[cluster_labels == i],
-                    marker='o', color=cluster_colors[i], alpha=0.5, label=f'Cluster {i + 1}')
-    # plotting centeroids
-    plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], c='red', marker='x', label='Centroids')
+                    marker='o', color=cluster_colors[i], alpha=0.5)
 
-    plt.title("Budget and Box Office, in million dollars".format('Budget (float)', 'Box office (float)'))
+    # Plot the regression line for the whole plot
+    if regression:
+        coeffs = np.polyfit(norm_budget, norm_box_office, 1)
+        reg_line = np.polyval(coeffs, norm_budget)
+        plt.plot(norm_budget, reg_line, linestyle='-', color='red', alpha=0.7, label='Regression Line')
+
+        r_squared = np.corrcoef(norm_box_office, reg_line)[0, 1] ** 2
+        rmse = np.sqrt(mean_squared_error(norm_box_office, reg_line))
+        print(f"R-squared for Regression: {r_squared:.4f}")
+        print(f"RMSE for Regression: {rmse:.2f} million dollars")
+
+    # plotting centeroids
+    plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], c='red', marker='x')
+
+    plt.title("Budget and Box Office, in million dollars")
     plt.xlabel('Budget')
     plt.ylabel('Box Office')
 
     if profit_line:
-        plt.plot([0, 500], [0, 500], linestyle='--', color='gray')
+        plt.plot([0, 500], [0, 500], linestyle='--', color='gray', label='Profitability line')
 
     plt.grid(True)  # Add grid lines
+    plt.legend()
 
     if show:
         plt.show()
     return data_c
 
 
-# print(budget_box_office(movies, cpi, True, True))
+# print(budget_box_office(movies, cpi, True, True, True))
 
 
 def find_profit_margin(data, cpi, column_list, profitable):
     """
-    finds the top 10 movies where the profit margin is either very high or very low
+    Finds the top 10 movies where the profit margin is either very high or very low
+    and visualizes the results as side-by-side bar chart.
     :param data: movie dataset
     :param cpi: cpi dataset
     :param column_list: list of column names from dataset to find profit margin for.
     column_list[0] is coord x, column_list[1] is coord y
-    :param profitable: true if i want to find movies that are max{box office-budget},
-    false if i want to find movies that are max{budget-box office}
-    :return: dictionary where key is the name of the movie, and value is the coordinates of
-    fields in column_list.
+    :param profitable: True if finding movies with max{box office-budget},
+    False if finding movies with max{budget-box office}
+    :return: Double bar chart depicting this
     """
-    data = budget_box_office(data, cpi, False, False)
+    data = budget_box_office(data, cpi, False, False, False)
 
     # calculating the profit (box office - budget)
     data['profit'] = data[column_list[1]] - data[column_list[0]]
 
-    # sort the data by profit in descending order if looking for most profitable, otherwise in ascending order
+    # sorting by profit in descending order if looking for most profitable, otherwise in ascending order
     data_sorted = data.sort_values(by='profit', ascending=not profitable)
-
-    # get the top 10 movies based on profitability
     top_movies = data_sorted.head(10)
 
-    result_dict = {}
-    for index, row in top_movies.iterrows():
-        movie_name = row['title']
-        coordinates = [row[column_list[0]], row[column_list[1]]]
-        result_dict[movie_name] = coordinates
+    fig, ax = plt.subplots(figsize=(10, 6))
+    movie_names = top_movies['title']
+    budget_values = top_movies[column_list[0]] / 1000000
+    box_office_values = top_movies[column_list[1]] / 1000000
 
-    return result_dict
+    bar_width = 0.35
+    index = range(len(movie_names))
+
+    budget_bars = ax.bar(index, budget_values, bar_width, label='Budget')
+    box_office_bars = ax.bar([i + bar_width for i in index], box_office_values, bar_width, label='Box Office')
+
+    ax.set_xlabel('Movies')
+    ax.set_ylabel('Values, in Million Dollars')
+    if profitable:
+        ax.set_title('Top 10 Movies with Highest Profit Margin')
+    else:
+        ax.set_title('Top 10 Movies with Lowest Profit Margin')
+    ax.set_xticks([i + bar_width / 2 for i in index])
+    ax.set_xticklabels(movie_names, rotation=45, ha='right')
+    ax.legend()
+
+    plt.tight_layout()
+    plt.show()
+
 
 # print(find_profit_margin(movies, cpi, ['Budget (float) normalised', 'Box office (float) normalised'], True))
 # print(find_profit_margin(movies, cpi, ['Budget (float) normalised', 'Box office (float) normalised'], False))
+
+def ten_highest(data, cpi, field):
+    """
+    Finds the 10 highest values of a specified field in the dataset.
+
+    :param data: movie dataset
+    :param cpi: cpi dataset
+    :param field: field to find 10 highest values for
+    :return: DataFrame containing the top 10 movies with the highest field value
+    """
+    data_c = data.copy()
+    data_c = normalise(cpi, field, data_c)
+
+    top_10 = data_c.nlargest(10, field + ' normalised')
+
+    return top_10[['title', field + ' normalised']]
+
+# print(ten_highest(movies, cpi, 'Budget (float)'))
+# print(ten_highest(movies, cpi, 'Box office (float)'))
