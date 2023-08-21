@@ -75,4 +75,4 @@ def monthly_success(data, cpi):
     plt.show()
 
 
-print(monthly_success(movies, cpi))
+# print(monthly_success(movies, cpi))

@@ -1,4 +1,6 @@
 from monthly_success import *
+import networkx as nx
+import re
 
 movies = pd.read_csv(f"DisneyMoviesDataset.csv")
 
@@ -73,65 +75,73 @@ def producer_success(data):
     """
     calculates rating of movies according to whether they were produced by walt disney
     :param data: movie dataset
-    :return: histogram showing walt disney's success as a producer vs. other producers for each rating
+    :return: side-by-side bar plots showing walt disney's success as a producer vs. other producers for each rating
     """
     # cleaning data
-    # data = get_comb_rating(data)
-    # data = remove_empty(data, ['Produced by', 'combined rating'])
     data = clean_rating(data)
     data = remove_empty(data, ['Produced by', 'imdb', 'metascore', 'rotten_tomatoes'])
 
-    # roy e. disney doesn't count as walt disney
+    # seperating disney and non disney
     disney_movies = data[data['Produced by'].str.contains('|'.join(['Disney']), case=False, na=False)]
     roy_disney_movies = data[data['Produced by'].str.contains('Roy E. Disney', case=False, na=False)]
     disney_movies = disney_movies[~disney_movies['title'].isin(roy_disney_movies['title'])]
+    non_disney_movies = data[~data['title'].isin(disney_movies['title'])]
 
-    # Calculate average ratings for Disney and other producers
-    disney_avg_ratings = disney_movies[['imdb', 'metascore', 'rotten_tomatoes']].mean()
-    other_movies = data[~data['title'].isin(disney_movies['title'])]
-    other_avg_ratings = other_movies[['imdb', 'metascore', 'rotten_tomatoes']].mean()
+    # Calculate average ratings for Disney movies
+    disney_avg_ratings = {
+        'imdb': disney_movies['imdb'].mean(),
+        'metascore': disney_movies['metascore'].mean(),
+        'rotten_tomatoes': disney_movies['rotten_tomatoes'].mean()
+    }
 
-    # Create a grouped bar plot for average ratings
-    rating_categories = ['Disney', 'Other Producers']
-    rating_columns = ['imdb', 'metascore', 'rotten_tomatoes']
-    x = range(len(rating_categories))
-    width = 0.2
+    # Calculate average ratings for non-Disney movies
+    non_disney_avg_ratings = {
+        'imdb': non_disney_movies['imdb'].mean(),
+        'metascore': non_disney_movies['metascore'].mean(),
+        'rotten_tomatoes': non_disney_movies['rotten_tomatoes'].mean()
+    }
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Create a DataFrame for the average ratings
+    avg_ratings_df = pd.DataFrame([disney_avg_ratings, non_disney_avg_ratings], index=['Disney', 'Non-Disney'])
 
-    for i, rating_col in enumerate(rating_columns):
-        ax.bar([pos + width * i for pos in x], [disney_avg_ratings[rating_col], other_avg_ratings[rating_col]], width,
-               label=rating_col)
-
-    ax.set_xlabel('Producer')
-    ax.set_ylabel('Average Rating')
-    ax.set_title('Average Ratings for Disney vs. Other Producers')
-    ax.set_xticks([pos + width for pos in x])
-    ax.set_xticklabels(rating_categories)
-    ax.set_ylim(0, 10)  # Set y-axis limit to 0-10
-    ax.legend()
+    # Plotting
+    avg_ratings_df.plot(kind='bar', figsize=(10, 6))
+    plt.title('Average Ratings for Disney vs Non-Disney Movies')
+    plt.ylabel('Average Rating')
+    plt.xlabel('Movie Type')
+    plt.xticks(rotation=0)
+    plt.legend(title='Rating Category')
+    plt.ylim(0, 10)
 
     plt.show()
 
 
 # print(producer_success(movies))
 
+
 def clean_producers(data):
     """
-    cleans producers column in dataset
+    Cleans producers column in the dataset
     :param data: movie dataset
     :return: dataset with clean column
     """
+    data = remove_empty(data, ['Produced by'])
     cleaned_producers = []
+
+    # Regex pattern for characters to remove
+    pattern = r'\([^)]*\)|\[|\]|\'|Associate Producer:'
+
     for producer in data['Produced by']:
         if isinstance(producer, str):
-            # producer full name
-            cleaned_producers.append(producer.strip())
+            # Apply regex pattern and strip
+            producer = re.sub(pattern, '', producer).strip()
+            # producer = re.sub(r'\b\w\. ', '', producer)
+            cleaned_producers.append(producer)
         elif isinstance(producer, list):
-            # list of producers
+            # List of producers
             cleaned_producers.append(', '.join([p.strip() for p in producer]))
         elif isinstance(producer, tuple):
-            # multiple producers as a comma-separated string
+            # Multiple producers as a comma-separated string
             cleaned_producers.append(', '.join([p.strip() for p in producer[0].split(',')]))
         else:
             cleaned_producers.append(None)
@@ -154,7 +164,8 @@ def detailed_producer_success(data):
     # Cleaning data
     data = clean_rating(data)
     data = remove_empty(data, ['Produced by', 'imdb', 'metascore', 'rotten_tomatoes'])
-    data = clean_producers(data)  # You need to implement clean_producers function
+    data = clean_producers(data)
+    # data = filter_producers(data)
 
     disney_alone = data[data['Produced by (clean)'].str.lower() == 'walt disney']
     disney_and_others = data[data['Produced by (clean)'].str.contains('walt disney', case=False) & ~(
@@ -189,7 +200,8 @@ def detailed_producer_success(data):
     plt.show()
 
 
-print(detailed_producer_success(movies))
+# print(detailed_producer_success(movies))
+
 
 def ten_producers(data, successful):
     """
@@ -202,6 +214,7 @@ def ten_producers(data, successful):
     data = get_comb_rating(data)
     data = clean_producers(data)
     data = remove_empty(data, ['combined rating', 'Produced by (clean)'])
+    # data = filter_producers(data)
 
     # creating a list of tuples with producer and rating
     producer_ratings = []
@@ -233,5 +246,36 @@ def ten_producers(data, successful):
     plt.tight_layout()
     plt.show()
 
+
 # print(ten_producers(movies, True))
 # print(ten_producers(movies, False))
+def prod_social_graph(data):
+    data = clean_producers(data)
+    data = remove_empty(data, ['Produced by (clean)'])
+
+    G = nx.Graph()  # Create an empty graph
+
+    # Add edges between producers who have worked together
+    for producers_list in data['Produced by (clean)']:
+        if producers_list is not None:
+            producers = producers_list.split(', ')
+            for i in range(len(producers)):
+                producers[i] = producers[i].replace(',', '').strip()  # Corrected line
+                for j in range(i + 1, len(producers)):
+                    if producers[i] != producers[j]:  # Check for equality
+                        # Check if the edge already exists before adding
+                        if not G.has_edge(producers[i], producers[j]):
+                            G.add_edge(producers[i], producers[j])
+
+    # Draw the social graph
+    plt.figure(figsize=(10, 8))
+    pos = nx.spring_layout(G)  # Position nodes using a spring layout algorithm
+    nx.draw(G, pos, with_labels=True, node_size=10, font_size=8, font_color='black')
+
+    nx.draw_networkx_nodes(G, pos, nodelist=['Walt Disney'], node_color='red', node_size=20)
+
+    plt.title("Producer Social Graph")
+    plt.show()
+
+
+# print(prod_social_graph(movies))
