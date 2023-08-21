@@ -30,7 +30,7 @@ def avg_monthly_success(data, cpi):
     plt.tight_layout()
     plt.show()
 
-print(avg_monthly_success(movies, cpi))
+# print(avg_monthly_success(movies, cpi))
 
 
 def monthly_success(data, cpi):
@@ -68,7 +68,7 @@ def monthly_success(data, cpi):
 
     plt.title('Movie Box Office by Release Month')
     plt.xlabel('Release Month')
-    plt.ylabel('Box Office, in million dollars')
+    plt.ylabel('Box Office (in million dollars)')
     plt.xticks(rotation=45)  # Rotate x-axis tick labels for better visibility
     plt.legend()
     plt.tight_layout()

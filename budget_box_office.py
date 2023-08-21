@@ -268,5 +268,5 @@ def ten_highest(data, cpi, field):
     plt.tight_layout()
     plt.show()
 
-# print(ten_highest(movies, cpi, 'Budget (float)'))
+print(ten_highest(movies, cpi, 'Budget (float)'))
 # print(ten_highest(movies, cpi, 'Box office (float)'))
