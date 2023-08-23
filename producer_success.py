@@ -129,13 +129,13 @@ def clean_producers(data):
     cleaned_producers = []
 
     # Regex pattern for characters to remove
-    pattern = r'\([^)]*\)|\[|\]|\'|Associate Producer:'
+    pattern = r'\([^)]*\)|\[|\]|\'|Associate Producer:|Executive:'
 
     for producer in data['Produced by']:
         if isinstance(producer, str):
             # Apply regex pattern and strip
             producer = re.sub(pattern, '', producer).strip()
-            # producer = re.sub(r'\b\w\. ', '', producer)
+            producer = re.sub(r'\b[A-Z]\.?\s', '', producer)
             cleaned_producers.append(producer)
         elif isinstance(producer, list):
             # List of producers
@@ -147,7 +147,7 @@ def clean_producers(data):
             cleaned_producers.append(None)
 
     data['Produced by (clean)'] = cleaned_producers
-    # print(cleaned_producers)
+    # print(data['Produced by (clean)'].unique())
     return data
 
 
@@ -203,48 +203,61 @@ def detailed_producer_success(data):
 # print(detailed_producer_success(movies))
 
 
-def ten_producers(data, successful):
+def should_keep(producers, producers_to_remove):
     """
-    shows the top 10 most / least successful producers according to movie rating
+    Determines whether a movie should be kept based on its producers
+    :param producers: List of producers for a movie
+    :param producers_to_remove: List of producers to be removed
+    :return: True if the movie should be kept, False otherwise
+    """
+    return any(producer not in producers_to_remove for producer in producers)
+
+
+def filter_producers(data):
+    """
+    Filters movies based on individual producers who have produced less than 10 movies
     :param data: movie dataset
-    :param successful: true for most successful, false for least successful
-    :return: histogram of top 10 most / least successful producers according to rating
+    :return: dataset with filtered movies
+    """
+    # Cleaning and preprocessing
+    data = clean_producers(data)
+    data = remove_empty(data, ['Produced by (clean)'])
+
+    # Remove any trailing commas in producers' names
+    data['Produced by (clean)'] = data['Produced by (clean)'].str.replace(r',\s*$', '', regex=True)
+
+    # Count the number of movies produced by each producer
+    producer_counts = data['Produced by (clean)'].str.split(', ').explode().value_counts()
+
+    # Identify producers with less than 7 movies
+    producers_to_remove = set(producer_counts[producer_counts < 7].index)
+
+    # Filter movies using the should_keep function
+    data['Filtered Producers'] = data['Produced by (clean)'].str.split(', ').apply(
+        lambda producers: should_keep(producers, producers_to_remove))
+    data = data[data['Filtered Producers']]
+
+    # Clean up the temporary columns
+    data.drop(columns=['Filtered Producers'], inplace=True)
+
+    return data
+
+
+# print(filter_producers(movies))
+
+
+def ten_producers(data):
+    """
+    shows the top 10 most successful producers according to movie rating
+    :param data: movie dataset
+    :return: histogram of top 10 most successful producers
     """
     # cleaning
     data = get_comb_rating(data)
     data = clean_producers(data)
     data = remove_empty(data, ['combined rating', 'Produced by (clean)'])
-    # data = filter_producers(data)
+    data = filter_producers(data)
 
-    # creating a list of tuples with producer and rating
-    producer_ratings = []
-    for idx, row in data.iterrows():
-        producers = row['Produced by (clean)'].split(', ')
-        for producer in producers:
-            cleaned_producer = producer.strip('[]')  # Remove square brackets
-            producer_ratings.append((cleaned_producer, row['combined rating']))
-
-    # creating a dataframe from the list of tuples
-    producer_ratings_df = pd.DataFrame.from_records(producer_ratings, columns=['Producer', 'Rating'])
-
-    # calculating the average rating for each producer
-    avg_producer_ratings = producer_ratings_df.groupby('Producer')['Rating'].mean()
-
-    # sorting the avg_producer_ratings based on success (ascending if successful=False)
-    sorted_producer_ratings = avg_producer_ratings.sort_values(ascending=not successful)
-
-    # getting top 10 producers
-    top_producers = sorted_producer_ratings.head(10)
-
-    plt.figure(figsize=(10, 6))
-    top_producers.plot(kind='bar', color='blue')
-    plt.ylim(0, 10)
-    plt.title('Top 10 ' + ('Most' if successful else 'Least') + ' Successful Producers')
-    plt.xlabel('Producer')
-    plt.ylabel('Average Rating')
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.show()
 
 
 # print(ten_producers(movies, True))
@@ -252,6 +265,7 @@ def ten_producers(data, successful):
 def prod_social_graph(data):
     data = clean_producers(data)
     data = remove_empty(data, ['Produced by (clean)'])
+    # data = filter_producers(data)
 
     G = nx.Graph()  # Create an empty graph
 
@@ -277,5 +291,4 @@ def prod_social_graph(data):
     plt.title("Producer Social Graph")
     plt.show()
 
-
-# print(prod_social_graph(movies))
+print(prod_social_graph(movies))
