@@ -217,7 +217,7 @@ def filter_producers(data):
     """
     Filters movies based on individual producers who have produced less than 10 movies
     :param data: movie dataset
-    :return: dataset with filtered movies
+    :return: dataset with filtered movies, list of producers and how many movies they produced
     """
     # Cleaning and preprocessing
     data = clean_producers(data)
@@ -229,8 +229,8 @@ def filter_producers(data):
     # Count the number of movies produced by each producer
     producer_counts = data['Produced by (clean)'].str.split(', ').explode().value_counts()
 
-    # Identify producers with less than 7 movies
-    producers_to_remove = set(producer_counts[producer_counts < 7].index)
+    # Identify producers with less than 6 movies
+    producers_to_remove = set(producer_counts[producer_counts < 6].index)
 
     # Filter movies using the should_keep function
     data['Filtered Producers'] = data['Produced by (clean)'].str.split(', ').apply(
@@ -240,7 +240,7 @@ def filter_producers(data):
     # Clean up the temporary columns
     data.drop(columns=['Filtered Producers'], inplace=True)
 
-    return data
+    return data, producer_counts
 
 
 # print(filter_producers(movies))
@@ -248,47 +248,88 @@ def filter_producers(data):
 
 def ten_producers(data):
     """
-    shows the top 10 most successful producers according to movie rating
+    Shows the top 10 most successful producers according to average combined rating
     :param data: movie dataset
-    :return: histogram of top 10 most successful producers
+    :return: shows bar graph of top producers, returns list of top producers
     """
-    # cleaning
+    # Cleaning and filtering steps
     data = get_comb_rating(data)
     data = clean_producers(data)
+    data, producer_counts = filter_producers(data)
     data = remove_empty(data, ['combined rating', 'Produced by (clean)'])
-    data = filter_producers(data)
+
+    successful_producers = producer_counts[producer_counts >= 7].index
+
+    producer_avg_ratings = {}  # Dictionary to store producer's average combined rating
+
+    # Calculate average combined rating for each successful producer
+    for producer in successful_producers:
+        producer_data = data[data['Produced by (clean)'].str.contains(producer)]
+        avg_rating = producer_data['combined rating'].mean()
+        producer_avg_ratings[producer] = avg_rating
+
+    # Convert the dictionary to a DataFrame
+    avg_rating_df = pd.DataFrame(list(producer_avg_ratings.items()), columns=['Producer', 'Average Rating'])
+
+    # Add the movie count to the DataFrame
+    avg_rating_df['Movie Count'] = avg_rating_df['Producer'].apply(lambda producer: producer_counts.get(producer, 0))
+
+    # Sort the DataFrame by average rating in descending order and select the top 10 producers
+    top_producers = avg_rating_df.sort_values(by='Average Rating', ascending=False).head(10)
+
+    # Plot a histogram of top 10 producers and their average ratings
+    plt.figure(figsize=(10, 6))
+    plt.bar(top_producers['Producer'] + ' (' + top_producers['Movie Count'].astype(str) + ')',
+            top_producers['Average Rating'])
+    plt.xlabel('Producer (no. of movies produced)')
+    plt.ylabel('Average Combined Rating')
+    plt.title('Top 10 Most Successful Producers by Average Combined Rating')
+    plt.ylim(1, 10)  # Set y-axis range between 1 and 10
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+    return top_producers['Producer'].tolist()
 
 
+# print(ten_producers(movies))
 
-# print(ten_producers(movies, True))
-# print(ten_producers(movies, False))
+
 def prod_social_graph(data):
+    """
+    plots a social graph of notable producers, emphasizing 10 most successful
+    :param data: movie dataset
+    :return: social graph
+    """
     data = clean_producers(data)
     data = remove_empty(data, ['Produced by (clean)'])
-    # data = filter_producers(data)
+    data, producer_count = filter_producers(data)
+    top_producers = ten_producers(data)
 
-    G = nx.Graph()  # Create an empty graph
+    # Create an undirected graph
+    G = nx.Graph()
 
-    # Add edges between producers who have worked together
-    for producers_list in data['Produced by (clean)']:
-        if producers_list is not None:
-            producers = producers_list.split(', ')
-            for i in range(len(producers)):
-                producers[i] = producers[i].replace(',', '').strip()  # Corrected line
-                for j in range(i + 1, len(producers)):
-                    if producers[i] != producers[j]:  # Check for equality
-                        # Check if the edge already exists before adding
-                        if not G.has_edge(producers[i], producers[j]):
-                            G.add_edge(producers[i], producers[j])
+    # Add nodes for producers with 6 or more movies
+    for producer, count in producer_count.items():
+        if count >= 6:
+            G.add_node(producer)
 
-    # Draw the social graph
-    plt.figure(figsize=(10, 8))
-    pos = nx.spring_layout(G)  # Position nodes using a spring layout algorithm
-    nx.draw(G, pos, with_labels=True, node_size=10, font_size=8, font_color='black')
+    # Add edges between producers listed together in "Produced by (clean)"
+    for row in data.iterrows():
+        producers = row[1]['Produced by (clean)'].split(', ')
+        for i in range(len(producers)):
+            for j in range(i + 1, len(producers)):
+                if G.has_node(producers[i]) and G.has_node(producers[j]):
+                    G.add_edge(producers[i], producers[j])
 
-    nx.draw_networkx_nodes(G, pos, nodelist=['Walt Disney'], node_color='red', node_size=20)
+    node_colours = ['red' if node in top_producers else 'blue' for node in G.nodes()]
 
-    plt.title("Producer Social Graph")
+    # Draw the graph
+    pos = nx.spring_layout(G, 1.1)
+    plt.figure(figsize=(10, 6))
+    nx.draw(G, pos, with_labels=True, node_size=300, font_size=10, node_color=node_colours)
+    plt.title('Notable Producers Social Graph')
     plt.show()
+
 
 print(prod_social_graph(movies))
