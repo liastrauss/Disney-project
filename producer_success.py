@@ -295,11 +295,11 @@ def ten_producers(data):
 # print(ten_producers(movies))
 
 
-def prod_social_graph(data):
+def prod_collab_graph(data):
     """
-    plots a social graph of notable producers, emphasizing 10 most successful
+    plots a collaboration graph of notable producers, emphasizing 10 most successful
     :param data: movie dataset
-    :return: social graph
+    :return: collaboration graph
     """
     data = clean_producers(data)
     data = remove_empty(data, ['Produced by (clean)'])
@@ -332,4 +332,4 @@ def prod_social_graph(data):
     plt.show()
 
 
-print(prod_social_graph(movies))
+# print(prod_collab_graph(movies))
