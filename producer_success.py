@@ -5,6 +5,10 @@ import re
 movies = pd.read_csv(f"DisneyMoviesDataset.csv")
 
 
+# Rating
+########
+
+
 def make_rating_uniform(data):
     """
     modifies ratings such that they are all float and between 1-10
@@ -13,7 +17,8 @@ def make_rating_uniform(data):
     """
     data['imdb'] = pd.to_numeric(data['imdb'], errors='coerce')
     data['metascore'] = pd.to_numeric(data['metascore'], errors='coerce') / 10
-    data['rotten_tomatoes'] = pd.to_numeric(data['rotten_tomatoes'].str.replace('%', ''), errors='coerce') / 10
+    data['rotten_tomatoes'] = pd.to_numeric(
+        data['rotten_tomatoes'].str.replace('%', ''), errors='coerce') / 10
 
     return data
 
@@ -52,13 +57,15 @@ def get_comb_rating(data):
     :param data: movie dataset
     :return: dataset with new column of combined rating
     """
-    # cleaning
     data = clean_rating(data)
     data = remove_empty(data, ['imdb', 'metascore', 'rotten_tomatoes'])
-
-    data['combined rating'] = data[['imdb', 'metascore', 'rotten_tomatoes']].mean(axis=1)
+    data['combined rating'] = data[[
+        'imdb', 'metascore', 'rotten_tomatoes']].mean(axis=1)
     return data
 
+
+# Producers
+###########
 
 def clean_producers(data):
     """
@@ -80,7 +87,8 @@ def clean_producers(data):
         elif isinstance(producer, list):
             cleaned_producers.append(', '.join([p.strip() for p in producer]))
         elif isinstance(producer, tuple):
-            cleaned_producers.append(', '.join([p.strip() for p in producer[0].split(',')]))
+            cleaned_producers.append(
+                ', '.join([p.strip() for p in producer[0].split(',')]))
         else:
             cleaned_producers.append(None)
 
@@ -108,9 +116,11 @@ def filter_producers(data):
     data = clean_producers(data)
     data = remove_empty(data, ['Produced by (clean)'])
 
-    data['Produced by (clean)'] = data['Produced by (clean)'].str.replace(r',\s*$', '', regex=True)
+    data['Produced by (clean)'] = data['Produced by (clean)'].str.replace(
+        r',\s*$', '', regex=True)
 
-    producer_counts = data['Produced by (clean)'].str.split(', ').explode().value_counts()
+    producer_counts = data['Produced by (clean)'].str.split(
+        ', ').explode().value_counts()
     producers_to_remove = set(producer_counts[producer_counts < 6].index)
 
     data['Filtered Producers'] = data['Produced by (clean)'].str.split(', ').apply(
@@ -140,14 +150,18 @@ def ten_producers(data):
 
     # calculates average combined rating for each producer
     for producer in successful_producers:
-        producer_data = data[data['Produced by (clean)'].str.contains(producer)]
+        producer_data = data[data['Produced by (clean)'].str.contains(
+            producer)]
         avg_rating = producer_data['combined rating'].mean()
         producer_avg_ratings[producer] = avg_rating
 
-    avg_rating_df = pd.DataFrame(list(producer_avg_ratings.items()), columns=['Producer', 'Average Rating'])
-    avg_rating_df['Movie Count'] = avg_rating_df['Producer'].apply(lambda producer: producer_counts.get(producer, 0))
+    avg_rating_df = pd.DataFrame(list(producer_avg_ratings.items()), columns=[
+                                 'Producer', 'Average Rating'])
+    avg_rating_df['Movie Count'] = avg_rating_df['Producer'].apply(
+        lambda producer: producer_counts.get(producer, 0))
 
-    top_producers = avg_rating_df.sort_values(by='Average Rating', ascending=False).head(10)
+    top_producers = avg_rating_df.sort_values(
+        by='Average Rating', ascending=False).head(10)
 
     plt.figure(figsize=(10, 6))
     plt.bar(top_producers['Producer'] + ' (' + top_producers['Movie Count'].astype(str) + ')',
@@ -162,6 +176,9 @@ def ten_producers(data):
 
     return top_producers['Producer'].tolist()
 
+
+# The producers' collaboration graph
+####################################
 
 def prod_collab_graph(data):
     """
@@ -187,10 +204,12 @@ def prod_collab_graph(data):
                 if G.has_node(producers[i]) and G.has_node(producers[j]):
                     G.add_edge(producers[i], producers[j])
 
-    node_colours = ['red' if node in top_producers else 'blue' for node in G.nodes()]
+    node_colours = [
+        'red' if node in top_producers else 'blue' for node in G.nodes()]
 
     pos = nx.spring_layout(G, 1.1)
     plt.figure(figsize=(10, 6))
-    nx.draw(G, pos, with_labels=True, node_size=300, font_size=10, node_color=node_colours)
+    nx.draw(G, pos, with_labels=True, node_size=300,
+            font_size=10, node_color=node_colours)
     plt.title('Notable Producers Social Graph')
     plt.show()

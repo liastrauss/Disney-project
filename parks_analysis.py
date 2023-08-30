@@ -3,14 +3,9 @@ from textblob import TextBlob
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
-from collections import Counter
 from nltk.corpus import stopwords
-import seaborn as sns
 from nltk.tokenize import word_tokenize
 import numpy as np
-
-# nltk.download('punkt')-just if it is not uptodate
-# nltk.download('stopwords')- just if it is not uptodate
 
 
 # Data cleaning
@@ -22,16 +17,20 @@ reviews_data = pd.read_csv('DisneylandReviews.csv',
 reviews_data = reviews_data.dropna(how='any')
 
 
-# word cloud
-############
+# word clouds
+#############
 
-# Combining all reviews
+# Combining all the reviews
 reviews_text = ' '.join(
     str(review) for review in reviews_data['Review_Text'] if isinstance(review, str))
 
 
-# Preparing the text for the word cloud
 def clean_text_for_cloud(text):
+    """
+    Preparing the text for the word cloud
+    :param data: parks dataset
+    :return: text without conjunctions, prepositions and stopwords
+    """
     stop_words = set(stopwords.words('english'))
     conjunctions_prepositions = r'\b(and|but|or|nor|for|yet|so|'
     conjunctions_prepositions += r"at|by|for|in|of|on|to|with|from|into|through|under|over|above|below|even|one|u|s|n't|)\b"
@@ -60,6 +59,11 @@ plt.show()
 # ################################
 
 def creat_words_cloud(category, text_data):
+    """
+    A general function to create a word cloud for each park separately
+    :param data: parks dataset
+    :return: a word cloud for the park it receives
+    """
     wordcloud = WordCloud(width=800, height=400,
                           background_color='white').generate(text_data)
     plt.figure(figsize=(10, 5))
@@ -76,9 +80,9 @@ for category in reviews_data["Branch"].unique():
     cloud_text = clean_text_for_cloud(category_data)
     creat_words_cloud(category, cloud_text)
 
+
 # Sentiment analysis
 ####################
-
 
 def analyze_sentiment(text):
     blob = TextBlob(text)
@@ -93,15 +97,20 @@ sentiment_Stat = reviews_data['Sentiment'].describe()
 # 1= extremely positive response, -1 extremely negative response
 print(sentiment_Stat)
 
+
+# Reviewer sentiment by Rating
+##############################
+
+
 # Normalization of the data in order to compare with the ratings
 reviews_data['normalized_sentiment'] = (reviews_data["Sentiment"]+1)*2.5
 
 
-# Reviewer Sentiment by Rating
-##############################
-
-#  Creating scatter plot
 def scatter_plot(x_label, x_values, y_label, y_values, title):
+    """
+    A general function to create a scatter plot
+    :param data: parks dataset
+    """
     y_vals = np.unique(y_values)
     mean_x = []
     mean_y = []
