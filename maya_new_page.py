@@ -5,10 +5,8 @@ import matplotlib.pyplot as plt
 import re
 from collections import Counter
 from nltk.corpus import stopwords
-import nltk
 import seaborn as sns
 from nltk.tokenize import word_tokenize
-import nltk
 import numpy as np
 # nltk.download('punkt')-just if it is not uptodate
 # nltk.download('stopwords')- just if it is not uptodate
