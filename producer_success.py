@@ -71,54 +71,6 @@ def get_comb_rating(data):
 # print(get_comb_rating(movies))
 
 
-def producer_success(data):
-    """
-    calculates rating of movies according to whether they were produced by walt disney
-    :param data: movie dataset
-    :return: side-by-side bar plots showing walt disney's success as a producer vs. other producers for each rating
-    """
-    # cleaning data
-    data = clean_rating(data)
-    data = remove_empty(data, ['Produced by', 'imdb', 'metascore', 'rotten_tomatoes'])
-
-    # seperating disney and non disney
-    disney_movies = data[data['Produced by'].str.contains('|'.join(['Disney']), case=False, na=False)]
-    roy_disney_movies = data[data['Produced by'].str.contains('Roy E. Disney', case=False, na=False)]
-    disney_movies = disney_movies[~disney_movies['title'].isin(roy_disney_movies['title'])]
-    non_disney_movies = data[~data['title'].isin(disney_movies['title'])]
-
-    # Calculate average ratings for Disney movies
-    disney_avg_ratings = {
-        'imdb': disney_movies['imdb'].mean(),
-        'metascore': disney_movies['metascore'].mean(),
-        'rotten_tomatoes': disney_movies['rotten_tomatoes'].mean()
-    }
-
-    # Calculate average ratings for non-Disney movies
-    non_disney_avg_ratings = {
-        'imdb': non_disney_movies['imdb'].mean(),
-        'metascore': non_disney_movies['metascore'].mean(),
-        'rotten_tomatoes': non_disney_movies['rotten_tomatoes'].mean()
-    }
-
-    # Create a DataFrame for the average ratings
-    avg_ratings_df = pd.DataFrame([disney_avg_ratings, non_disney_avg_ratings], index=['Disney', 'Non-Disney'])
-
-    # Plotting
-    avg_ratings_df.plot(kind='bar', figsize=(10, 6))
-    plt.title('Average Ratings for Disney vs Non-Disney Movies')
-    plt.ylabel('Average Rating')
-    plt.xlabel('Movie Type')
-    plt.xticks(rotation=0)
-    plt.legend(title='Rating Category')
-    plt.ylim(0, 10)
-
-    plt.show()
-
-
-# print(producer_success(movies))
-
-
 def clean_producers(data):
     """
     Cleans producers column in the dataset
@@ -152,55 +104,6 @@ def clean_producers(data):
 
 
 # print(clean_producers(movies))
-
-
-def detailed_producer_success(data):
-    """
-    calculates rating of movies according to whether they were produced by walt disney alone, by
-    walt disney and others, or without walt disney
-    :param data: movie dataset
-    :return: histogram mapping it out
-    """
-    # Cleaning data
-    data = clean_rating(data)
-    data = remove_empty(data, ['Produced by', 'imdb', 'metascore', 'rotten_tomatoes'])
-    data = clean_producers(data)
-    # data = filter_producers(data)
-
-    disney_alone = data[data['Produced by (clean)'].str.lower() == 'walt disney']
-    disney_and_others = data[data['Produced by (clean)'].str.contains('walt disney', case=False) & ~(
-            data['Produced by (clean)'].str.lower() == 'walt disney')]
-    without_disney = data[~data['Produced by (clean)'].str.contains('walt disney', case=False)]
-
-    # Calculate average ratings for each producer category
-    disney_alone_avg_ratings = disney_alone[['imdb', 'metascore', 'rotten_tomatoes']].mean()
-    disney_and_others_avg_ratings = disney_and_others[['imdb', 'metascore', 'rotten_tomatoes']].mean()
-    without_disney_avg_ratings = without_disney[['imdb', 'metascore', 'rotten_tomatoes']].mean()
-
-    # Create bar plots for average ratings
-    producer_categories = ['Disney Alone', 'Disney and Others', 'Without Disney']
-    x = range(len(producer_categories))
-    width = 0.25
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    for i, rating_col in enumerate(['imdb', 'metascore', 'rotten_tomatoes']):
-        ax.bar([pos + width * i for pos in x],
-               [disney_alone_avg_ratings[rating_col], disney_and_others_avg_ratings[rating_col],
-                without_disney_avg_ratings[rating_col]], width, label=rating_col)
-
-    ax.set_xlabel('Producer Categories')
-    ax.set_ylabel('Average Rating')
-    ax.set_title('Average Ratings for Different Producer Categories')
-    ax.set_xticks([pos + width for pos in x])
-    ax.set_xticklabels(producer_categories)
-    ax.set_ylim(0, 10)  # Set y-axis limit to 0-10
-    ax.legend(loc='upper left')
-
-    plt.show()
-
-
-# print(detailed_producer_success(movies))
 
 
 def should_keep(producers, producers_to_remove):
@@ -330,6 +233,5 @@ def prod_collab_graph(data):
     nx.draw(G, pos, with_labels=True, node_size=300, font_size=10, node_color=node_colours)
     plt.title('Notable Producers Social Graph')
     plt.show()
-
 
 # print(prod_collab_graph(movies))
