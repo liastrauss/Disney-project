@@ -9,6 +9,7 @@ import nltk
 import seaborn as sns
 from nltk.tokenize import word_tokenize
 import nltk
+import numpy as np
 # nltk.download('punkt')-just if it is not uptodate
 # nltk.download('stopwords')- just if it is not uptodate
 
@@ -37,10 +38,13 @@ def analyze_sentiment(text):
 
 column_name = 'Review_Text'
 reviews_data['Sentiment'] = reviews_data[column_name].apply(analyze_sentiment)
-
+# reviews_data['normalized_sentiment'] = (reviews_data["Sentiment"]+1)*2.5
 # 1= extremely positive response, -1 extremely negative response
 sentiment_Stat = reviews_data['Sentiment'].describe()
-# print("Statistical findings of the column Sentiment", {sentiment_Stat})
+
+# print(
+#     f"the normalized sentiment= {reviews_data['Sentiment'], reviews_data['normalized_sentiment'].head}")
+# print(sentiment_Stat)
 
 
 # word cloud
@@ -55,8 +59,7 @@ reviews_text = ' '.join(
 def clean_text_for_cloud(text):
     stop_words = set(stopwords.words('english'))
     conjunctions_prepositions = r'\b(and|but|or|nor|for|yet|so|'
-    conjunctions_prepositions += r'at|by|for|in|of|on|to|with|from|into|through|under|over|above|below|even|one|u|s)\b'
-
+    conjunctions_prepositions += r"at|by|for|in|of|on|to|with|from|into|through|under|over|above|below|even|one|u|s|n't|)\b"
     pattern = re.compile(conjunctions_prepositions, flags=re.IGNORECASE)
     words = word_tokenize(text)
     cleaned_words = [word for word in words if word.lower() not in stop_words]
@@ -68,16 +71,18 @@ def clean_text_for_cloud(text):
 
 
 text_for_cloud = clean_text_for_cloud(reviews_text)
+print(text_for_cloud[:300])
+
 
 # Word cloud for all reviews of all parks
-wordcloud = WordCloud(width=800, height=800,
-                      background_color='white').generate(text_for_cloud)
-plt.figure(figsize=(10, 5), facecolor=None)
-plt.imshow(wordcloud)
-plt.axis("off")
-plt.title("Reviews Word Cloud for All Parks Together")
-plt.tight_layout(pad=0)
-plt.show()
+# wordcloud = WordCloud(width=800, height=800,
+#                       background_color='white').generate(text_for_cloud)
+# plt.figure(figsize=(10, 5), facecolor=None)
+# plt.imshow(wordcloud,  interpolation='bilinear')
+# plt.axis("off")
+# plt.title("Reviews Word Cloud for All Parks Together")
+# plt.tight_layout(pad=0)
+# plt.show()
 
 
 # # Creating a word cloud by parks
@@ -94,32 +99,43 @@ def creat_words_cloud(category, text_data):
     plt.show()
 
 
-for category in reviews_data["Branch"].unique():
-    category_data = reviews_data[reviews_data['Branch']
-                                 == category]['Review_Text']
-    category_data = ' '.join(category_data)
-    cloud_text = clean_text_for_cloud(category_data)
-    creat_words_cloud(category, cloud_text)
+# for category in reviews_data["Branch"].unique():
+#     category_data = reviews_data[reviews_data['Branch']
+#                                  == category]['Review_Text']
+#     category_data = ' '.join(category_data)
+#     cloud_text = clean_text_for_cloud(category_data)
+#     creat_words_cloud(category, cloud_text)
 
 
 # # formatting the date column:
 ###############################
 
-# reviews_data['Year_Month'] = pd.to_datetime(
-#     reviews_data['Year_Month'], format='%Y-%m')
+reviews_data['Year_Month'] = pd.to_datetime(
+    reviews_data['Year_Month'], format='%Y-%m')
 
-# # creating a year and mounth column
-# reviews_data['year'] = pd.to_datetime(reviews_data['Year_Month']).dt.year
-# reviews_data['month'] = pd.to_datetime(reviews_data['Year_Month']).dt.month
+# creating a year and mounth column
+reviews_data['year'] = pd.to_datetime(reviews_data['Year_Month']).dt.year
+reviews_data['month'] = pd.to_datetime(reviews_data['Year_Month']).dt.month
 
 
 # Reviewer_Location& Rating,  Reviewer_Location&Sentiment
 #########################################################
 
 #  Creating scatter plot
-def scatter_plot(x_label, x_valus, y_label, y_values, title):
-    plt.figure(figsize=(8, 6))
-    plt.scatter(x_valus, y_values, color='blue', label='Data Points')
+def scatter_plot(x_label, x_values, y_label, y_values, title):
+
+    y_vals = np.unique(y_values)
+    mean_x = []
+    mean_y = []
+    for val in y_vals:
+        index = (y_values == val)
+        mean_x.append(np.mean(x_values[index]))
+        mean_y.append(val)
+
+    # Plot markers for the means
+    plt.scatter(x_values, y_values, color='c', label='Data Points')
+    plt.scatter(mean_x, mean_y, color='crimson',
+                marker='o', s=100, label='Mean')
     plt.title(title)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
@@ -127,13 +143,17 @@ def scatter_plot(x_label, x_valus, y_label, y_values, title):
     plt.grid(True)
     plt.show()
 
-# scatter_plot("Reviewer_Location", mean_ratings["Reviewer_Location"], "Rating",
-#              mean_ratings["Rating"], "Rating by Reviewer_Location")
-
 
 def sort_by(data, sort_by):
     sorted_data = data.sort_values(by=sort_by)
     return sorted_data
+
+
+# sort_by(reviews_data, "normalized_sentiment")
+# scatter_plot("normalized_sentiment",
+#              reviews_data['normalized_sentiment'], "Rating", reviews_data["Rating"], "rating by normalized sentiment    ")
+# scatter_plot("Reviewer_Location", mean_ratings["Reviewer_Location"], "Rating",
+#              mean_ratings["Rating"], "Rating by Reviewer_Location")
 
 
 # # sorted_data = sort_by(reviews_data, "Rating")
@@ -186,5 +206,27 @@ def bar_plot(x_value, y_value, data):
     plt.legend()
     plt.show()
 
+# bar plot of The 20 countries with the most reviews'
+####################################################
 
-bar_plot()
+
+def bar_plot_catagorys(column, x_lable, y_lable, title):
+    category_counts = reviews_data[column].value_counts()
+    category_counts.sort_by(category_counts, "year")
+    category_counts = category_counts.head(20)
+    category_counts.plot(kind='bar')
+    plt.title(title)
+    plt.xlabel(x_lable)
+    plt.ylabel(y_lable)
+    plt.xticks(rotation=30)
+    plt.show()
+
+
+# bar_plot_catagorys("Reviewer_Location", 'Countries',
+#                    'Number of reviews', 'The 20 countries with the most reviews')
+# sort_by(reviews_data, "year")
+# bar_plot_catagorys("year", 'year',
+#                    'Number of reviews', 'number of reviews per year')
+
+# bar plot of The number of reviews per year'
+####################################################
