@@ -11,13 +11,12 @@ def avg_monthly_success(data, cpi):
     :param cpi: cpi dataset
     :return: histogram that shows the average box office per month
     """
-    # cleaning data
+    # cleaning
     data = normalise(cpi, "Box office (float)", data)
     data = remove_empty(data, ["Box office (float)", "Release date (datetime)"])
     data = fix_dates(data)
 
     data['Release Month'] = data['Release date (datetime)'].dt.strftime('%b')
-    # print(data['Release Month'])
 
     monthly_avg_box_office = data.groupby('Release Month')['Box office (float) normalised'].mean() / 1000000
     month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -30,18 +29,15 @@ def avg_monthly_success(data, cpi):
     plt.tight_layout()
     plt.show()
 
-# print(avg_monthly_success(movies, cpi))
-
 
 def monthly_success(data, cpi):
     """
-    Calculates relative success of movies according to month and visualizes it as a scatter plot.
-
+    calculates relative success of movies according to month and visualizes it as a scatter plot
     :param data: movies dataset
     :param cpi: cpi dataset
     :return: Scatter plot that shows the box office per movie for each month
     """
-    # cleaning data
+    # cleaning
     data = normalise(cpi, "Box office (float)", data)
     data = remove_empty(data, ["Box office (float)", "Release date (datetime)"])
     data = fix_dates(data)
@@ -51,7 +47,6 @@ def monthly_success(data, cpi):
     month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     data['Release Month'] = pd.Categorical(data['Release Month'], categories=month_order, ordered=True)
 
-    # Sort data by release month
     data_sorted = data.sort_values('Release Month')
 
     plt.figure(figsize=(10, 6))
@@ -61,7 +56,6 @@ def monthly_success(data, cpi):
         plt.scatter([month] * len(month_data), month_data['Box office (float) normalised'] / 1000000,
                     alpha=0.7)
 
-    # Plot the mean box office line for each month
     monthly_mean_box_office = data_sorted.groupby('Release Month')['Box office (float) normalised'].mean() / 1000000
     plt.plot(monthly_mean_box_office.index, monthly_mean_box_office, marker='o', color='red', linestyle='dashed',
              label='Mean Box Office')
@@ -73,6 +67,3 @@ def monthly_success(data, cpi):
     plt.legend()
     plt.tight_layout()
     plt.show()
-
-
-# print(monthly_success(movies, cpi))
