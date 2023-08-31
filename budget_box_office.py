@@ -6,6 +6,9 @@ from sklearn.metrics import mean_squared_error
 movies = pd.read_csv(f"DisneyMoviesDataset.csv")
 cpi = pd.read_csv(f"US CPI.csv")
 
+# Data arrangement
+##################
+
 
 def remove_empty(data, column_lst):
     """
@@ -38,14 +41,16 @@ def fix_dates(data):
     :param data: dataset
     :return: dataset with correct datetime objects
     """
-    data['Release date (datetime)'] = pd.to_datetime(data['Release date (datetime)'], format='%d-%m-%y')
+    data['Release date (datetime)'] = pd.to_datetime(
+        data['Release date (datetime)'], format='%d-%m-%y')
 
     corrected_dates = []
     for index, row in data.iterrows():
         year = row['Release date (datetime)'].year
         if year > 2022:
             corrected_year = year - 2000 + 1900
-            corrected_date = row['Release date (datetime)'].replace(year=corrected_year)
+            corrected_date = row['Release date (datetime)'].replace(
+                year=corrected_year)
             corrected_dates.append(corrected_date)
         else:
             corrected_dates.append(row['Release date (datetime)'])
@@ -115,6 +120,9 @@ def normalise(cpi, field_name, data):
     return data
 
 
+# visualizations
+################
+
 def budget_box_office(data, cpi, show, profit_line, regression):
     """
     maps out the budget vs box office, normalised to 2021 with an option to show
@@ -135,12 +143,14 @@ def budget_box_office(data, cpi, show, profit_line, regression):
     norm_budget = data_c['Budget (float) normalised'] / 1000000
     norm_box_office = data_c['Box office (float) normalised'] / 1000000
 
-    plt.scatter(norm_budget, norm_box_office, marker='o', color='blue', alpha=0.5)
+    plt.scatter(norm_budget, norm_box_office,
+                marker='o', color='blue', alpha=0.5)
 
     if regression:
         coeffs = np.polyfit(norm_budget, norm_box_office, 1)
         reg_line = np.polyval(coeffs, norm_budget)
-        plt.plot(norm_budget, reg_line, linestyle='-', color='red', alpha=0.7, label='Regression Line')
+        plt.plot(norm_budget, reg_line, linestyle='-',
+                 color='red', alpha=0.7, label='Regression Line')
 
         r_squared = np.corrcoef(norm_box_office, reg_line)[0, 1] ** 2
         rmse = np.sqrt(mean_squared_error(norm_box_office, reg_line))
@@ -152,9 +162,9 @@ def budget_box_office(data, cpi, show, profit_line, regression):
     plt.ylabel('Box Office')
 
     if profit_line:
-        plt.plot([0, 500], [0, 500], linestyle='--', color='gray', label='Profitability line')
-
-    plt.grid(True)  # Add grid lines
+        plt.plot([0, 500], [0, 500], linestyle='--',
+                 color='gray', label='Profitability line')
+    plt.grid(True)
     plt.legend()
 
     if show:
@@ -190,7 +200,8 @@ def find_profit_margin(data, cpi, column_list):
     index = range(len(movie_names))
 
     budget_bars = ax.bar(index, budget_values, bar_width, label='Budget')
-    box_office_bars = ax.bar([i + bar_width for i in index], box_office_values, bar_width, label='Box Office')
+    box_office_bars = ax.bar([i + bar_width for i in index],
+                             box_office_values, bar_width, label='Box Office')
 
     ax.set_xlabel('Movies')
     ax.set_ylabel('Values (in million dollars)')
@@ -219,11 +230,12 @@ def ten_highest(data, cpi, field):
     top_10 = data_c.nlargest(10, field + ' normalised')
 
     plt.figure(figsize=(10, 6))
-    plt.bar(top_10['title'], top_10[field + ' normalised'] / 1000000, color='blue')
+    plt.bar(top_10['title'], top_10[field +
+            ' normalised'] / 1000000, color='blue')
     plt.xlabel('Movie')
     field = field.replace('(float)', '')
     plt.ylabel(field + ' (in million dollars)')
     plt.title(f'Top 10 Movies with Highest {field}')
-    plt.xticks(rotation=45, ha='right', wrap=True)  # Wrap movie names
+    plt.xticks(rotation=45, ha='right', wrap=True)
     plt.tight_layout()
     plt.show()

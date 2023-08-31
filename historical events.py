@@ -4,11 +4,18 @@ from budget_box_office import *
 
 movies = pd.read_csv(f"DisneyMoviesDataset.csv")
 
+
 def historical(data):
+    """
+    Cleaning the data and organizing it. Counting the number of films released each year
+    :param data: movie dataset
+    :return: A graph showing the amount of movies per year
+    """
     data = remove_empty(data, ["Release date (datetime)"])
     data = fix_dates(data)
 
-    data['Release Year'] = data['Release date (datetime)'].dt.year  # Extract year directly
+    # Extract year directly
+    data['Release Year'] = data['Release date (datetime)'].dt.year
     year_counts = data['Release Year'].value_counts().sort_index()
 
     # Create a range of years from the data
@@ -27,5 +34,6 @@ def historical(data):
     plt.xticks(rotation=45, ha='right', fontsize=5)
     plt.tight_layout()
     plt.show()
+
 
 historical(movies)
